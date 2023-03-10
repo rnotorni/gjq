@@ -23,6 +23,7 @@ import "C"
 
 import (
 	"fmt"
+	"strings"
 	"unsafe"
 )
 
@@ -88,4 +89,31 @@ func (g *GJQ) Close() {
 	for _, f := range g.defferFuncs {
 		f(g)
 	}
+}
+
+// Run .
+// TODO: input to any and use buffer
+func (g *GJQ) Run(json string) (string, error) {
+	inputJv := C.jv_parse(g.cString(json))
+	if C.jv_is_valid(inputJv) == 0 {
+		// TODO:
+		return "", fmt.Errorf("can'input: parse error")
+	}
+	C.jq_start(g.jqState, inputJv, C.int(0))
+	defer C.jq_start(g.jqState, C.jv_null(), C.int(0))
+
+	out := make([]string, 0)
+	for tmp := C.jq_next(g.jqState); C.jv_is_valid(tmp) == 1; tmp = C.jq_next(g.jqState) {
+		out = append(out, JvDumpString(tmp))
+		C.jv_free(tmp)
+	}
+	return strings.Join(out, "\n"), nil
+}
+
+// JvDumpString .
+func JvDumpString(str C.jv) string {
+	dumpedjv := C.jv_dump_string(C.jv_copy(str), C.int(0))
+
+	defer C.jv_free(dumpedjv)
+	return C.GoString(C.jv_string_value(dumpedjv))
 }
