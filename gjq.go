@@ -104,16 +104,17 @@ func (g *GJQ) Run(json string) (string, error) {
 
 	out := make([]string, 0)
 	for tmp := C.jq_next(g.jqState); C.jv_is_valid(tmp) == 1; tmp = C.jq_next(g.jqState) {
-		out = append(out, JvDumpString(tmp))
-		C.jv_free(tmp)
+		out = append(out, jvDumpString(tmp))
 	}
 	return strings.Join(out, "\n"), nil
 }
 
-// JvDumpString .
-func JvDumpString(str C.jv) string {
-	dumpedjv := C.jv_dump_string(C.jv_copy(str), C.int(0))
 
+func jvDumpString(str C.jv) string {
+	// When jv_dump_string is executed, jv_free is executed for the argument jv.
+	// > https://github.com/stedolan/jq/blob/80052e5275ae8c45b20411eecdd49c945a64a412/src/jv_print.c#L368
+	dumpedjv := C.jv_dump_string(str, C.int(0))
 	defer C.jv_free(dumpedjv)
+
 	return C.GoString(C.jv_string_value(dumpedjv))
 }
