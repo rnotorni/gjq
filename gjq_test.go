@@ -1,6 +1,7 @@
 package gjq
 
 import (
+	"io"
 	"testing"
 )
 
@@ -49,12 +50,31 @@ func Test_GJQRun(t *testing.T) {
 			input: `{"hoge":{"fuga":"piyo"}}`,
 			expected: `{"fuga":"piyo"}`,
 		},
+		{
+			name:      "success 2",
+			script:    `.hoge|.[]`,
+			input: `{"hoge":["1","2",3]}`,
+			expected: `"1"
+"2"
+3`,
+		},
+		{
+			name:      "success 3",
+			script:    `.hoge|.[]`,
+			input: `{"hoge":["1","2",3]}`,
+			expected: `"1"
+"2"
+3`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gjq,_ := NewGJQ(tt.script)
+			gjq, _ := NewGJQ(tt.script)
 			defer gjq.Close()
-			if actual, err := gjq.Run(tt.input); tt.expected != actual {
+			r, _ := gjq.Run(tt.input)
+			b, err := io.ReadAll(r)
+			actual := string(b)
+			if tt.expected != actual {
 				t.Errorf("%v", err)
 				t.Errorf("%v != %v", tt.expected, actual)
 			}

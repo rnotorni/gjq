@@ -23,8 +23,9 @@ import "C"
 
 import (
 	"fmt"
-	"strings"
 	"unsafe"
+	"io"
+	"bytes"
 )
 
 // GJQ .
@@ -93,20 +94,25 @@ func (g *GJQ) Close() {
 
 // Run .
 // TODO: input to any and use buffer
-func (g *GJQ) Run(json string) (string, error) {
+func (g *GJQ) Run(json string) (io.Reader, error) {
 	inputJv := C.jv_parse(g.cString(json))
 	if C.jv_is_valid(inputJv) == 0 {
 		// TODO:
-		return "", fmt.Errorf("can'input: parse error")
+		return nil, fmt.Errorf("can'input: parse error")
 	}
 	C.jq_start(g.jqState, inputJv, C.int(0))
-	defer C.jq_start(g.jqState, C.jv_null(), C.int(0))
 
-	out := make([]string, 0)
-	for tmp := C.jq_next(g.jqState); C.jv_is_valid(tmp) == 1; tmp = C.jq_next(g.jqState) {
-		out = append(out, jvDumpString(tmp))
+	ret := bytes.NewBuffer(nil)
+	for tmp, first := C.jq_next(g.jqState), true; C.jv_is_valid(tmp) == 1; tmp = C.jq_next(g.jqState) {
+		if !first {
+			ret.Write([]byte{'\n'})
+		}
+		ret.WriteString(jvDumpString(tmp))
+		first = false
 	}
-	return strings.Join(out, "\n"), nil
+	C.jq_start(g.jqState, C.jv_null(), C.int(0))
+
+	return ret, nil
 }
 
 
